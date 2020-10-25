@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using Dodo.HttpClientResiliencePolicies.CircuitBreakerSettings;
 using Dodo.HttpClientResiliencePolicies.RetrySettings;
+using Dodo.HttpClientResiliencePolicies.TimeoutPolicySettings;
 using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using Polly.CircuitBreaker;
@@ -26,7 +27,7 @@ namespace Dodo.HttpClientResiliencePolicies
 		public static IHttpClientBuilder AddJsonClient<TClientInterface, TClientImplementation>(
 			this IServiceCollection sc,
 			Uri baseAddress,
-			HttpClientSettings settings,
+			ResiliencePoliciesSettings settings,
 			string clientName = null) where TClientInterface : class
 			where TClientImplementation : class, TClientInterface
 		{
@@ -35,7 +36,7 @@ namespace Dodo.HttpClientResiliencePolicies
 			{
 				client.BaseAddress = baseAddress;
 				client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-				client.Timeout = settings.TimeoutOverall + delta;
+				client.Timeout = settings.OverallTimeoutPolicySettings.Timeout + delta;
 			};
 
 			var httpClientBuilder = string.IsNullOrEmpty(clientName)
@@ -56,7 +57,7 @@ namespace Dodo.HttpClientResiliencePolicies
 			this IHttpClientBuilder clientBuilder)
 		{
 			return clientBuilder
-				.AddDefaultPolicies(HttpClientSettings.Default());
+				.AddDefaultPolicies(new ResiliencePoliciesSettings());
 		}
 
 		/// <summary>
@@ -67,13 +68,13 @@ namespace Dodo.HttpClientResiliencePolicies
 		/// <returns>An <see cref="IHttpClientBuilder"/> that can be used to configure the client.</returns>
 		public static IHttpClientBuilder AddDefaultPolicies(
 			this IHttpClientBuilder clientBuilder,
-			HttpClientSettings settings)
+			ResiliencePoliciesSettings settings)
 		{
 			return clientBuilder
-				.AddTimeoutPolicy(settings.TimeoutOverall)
+				.AddTimeoutPolicy(settings.OverallTimeoutPolicySettings)
 				.AddRetryPolicy(settings.RetrySettings)
 				.AddCircuitBreakerPolicy(settings.CircuitBreakerSettings)
-				.AddTimeoutPolicy(settings.TimeoutPerTry);
+				.AddTimeoutPolicy(settings.TimeoutPerTryPolicySettings);
 		}
 
 		/// <summary>
@@ -85,7 +86,7 @@ namespace Dodo.HttpClientResiliencePolicies
 			this IHttpClientBuilder clientBuilder)
 		{
 			return clientBuilder
-				.AddDefaultHostSpecificPolicies(HttpClientSettings.Default());
+				.AddDefaultHostSpecificPolicies(new ResiliencePoliciesSettings());
 		}
 
 		/// <summary>
@@ -96,13 +97,13 @@ namespace Dodo.HttpClientResiliencePolicies
 		/// <returns>An <see cref="IHttpClientBuilder"/> that can be used to configure the client.</returns>
 		public static IHttpClientBuilder AddDefaultHostSpecificPolicies(
 			this IHttpClientBuilder clientBuilder,
-			HttpClientSettings settings)
+			ResiliencePoliciesSettings settings)
 		{
 			return clientBuilder
-				.AddTimeoutPolicy(settings.TimeoutOverall)
+				.AddTimeoutPolicy(settings.OverallTimeoutPolicySettings)
 				.AddRetryPolicy(settings.RetrySettings)
 				.AddHostSpecificCircuitBreakerPolicy(settings.CircuitBreakerSettings)
-				.AddTimeoutPolicy(settings.TimeoutPerTry);
+				.AddTimeoutPolicy(settings.TimeoutPerTryPolicySettings);
 		}
 
 		private static IHttpClientBuilder AddRetryPolicy(
@@ -156,9 +157,9 @@ namespace Dodo.HttpClientResiliencePolicies
 					settings.OnHalfOpen);
 		}
 
-		private static IHttpClientBuilder AddTimeoutPolicy(this IHttpClientBuilder httpClientBuilder, TimeSpan timeout)
+		private static IHttpClientBuilder AddTimeoutPolicy(this IHttpClientBuilder httpClientBuilder, ITimeoutPolicySettings settings)
 		{
-			return httpClientBuilder.AddPolicyHandler(Policy.TimeoutAsync<HttpResponseMessage>(timeout));
+			return httpClientBuilder.AddPolicyHandler(Policy.TimeoutAsync<HttpResponseMessage>(settings.Timeout));
 		}
 	}
 }

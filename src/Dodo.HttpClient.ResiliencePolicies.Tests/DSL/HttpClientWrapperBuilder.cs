@@ -5,6 +5,7 @@ using System.Net.Http;
 using Dodo.HttpClientResiliencePolicies.CircuitBreakerSettings;
 using Dodo.HttpClientResiliencePolicies.RetrySettings;
 using Dodo.HttpClientResiliencePolicies.Tests.Fakes;
+using Dodo.HttpClientResiliencePolicies.TimeoutPolicySettings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Dodo.HttpClientResiliencePolicies.Tests.DSL
@@ -93,20 +94,24 @@ namespace Dodo.HttpClientResiliencePolicies.Tests.DSL
 			return new HttpClientWrapper(client, handler);
 		}
 
-		private HttpClientSettings BuildClientSettings()
+		private ResiliencePoliciesSettings BuildClientSettings()
 		{
-			var defaultCircuitBreakerSettings = _circuitBreakerSettings ?? new CircuitBreakerSettings.CircuitBreakerSettings(
-				failureThreshold: 0.5,
-				minimumThroughput: int.MaxValue,
-				durationOfBreak: TimeSpan.FromMilliseconds(1),
-				samplingDuration: TimeSpan.FromMilliseconds(20)
-				);
+			var defaultCircuitBreakerSettings = _circuitBreakerSettings ??
+												new CircuitBreakerSettings.CircuitBreakerSettings
+												{
+													FailureThreshold = 0.5,
+													MinimumThroughput = int.MaxValue,
+													DurationOfBreak = TimeSpan.FromMilliseconds(1),
+													SamplingDuration = TimeSpan.FromMilliseconds(20)
+												};
 
-			return new HttpClientSettings(
-				timeoutOverall: _timeoutOverall,
-				timeoutPerTry: _timeoutPerTry,
-				retrySettings: _retrySettings ?? JitterRetrySettings.Default(),
-				circuitBreakerSettings: defaultCircuitBreakerSettings);
+			return new ResiliencePoliciesSettings
+			{
+				OverallTimeoutPolicySettings = new OverallTimeoutPolicySettings{Timeout = _timeoutOverall},
+				TimeoutPerTryPolicySettings = new TimeoutPerTryPolicySettings{Timeout = _timeoutPerTry},
+				RetrySettings = _retrySettings ?? new JitterRetrySettings(),
+				CircuitBreakerSettings = defaultCircuitBreakerSettings
+			};
 		}
 	}
 }
